@@ -1,0 +1,6 @@
+{
+  "name": "超級開會記錄助手",
+  "description": "即時連線的語音與文字會議記錄助手。支援雙端（記錄主機與發言終端）對等連接，自動使用 Gemini AI 進行會議重點摘要、待辦事項生成與即時心智圖構建。",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
