@@ -16,8 +16,36 @@ export async function transcribeAudioClientSide(
   apiKey: string,
   base64Audio: string,
   rawMimeType: string,
-  model: string = "gemini-2.5-flash"
+  model: string = "gemini-2.5-flash",
+  mode: "cloud" | "local" = "cloud"
 ): Promise<string> {
+  if (mode === "local") {
+    // Convert base64 to Blob for multipart upload
+    const byteCharacters = atob(base64Audio);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: rawMimeType });
+
+    const formData = new FormData();
+    formData.append("file", blob, "audio.webm");
+
+    const response = await fetch("http://localhost:8888/api/local/transcribe", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Local transcribe failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.text || "";
+  }
+
+  // Cloud Mode (Original logic)
   const mimeType = rawMimeType.split(";")[0];
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -66,8 +94,29 @@ export interface GeminiAnalysisResult {
 export async function analyzeMeetingClientSide(
   apiKey: string,
   segments: MeetingSegment[],
-  model: string = "gemini-2.5-flash"
+  model: string = "gemini-2.5-flash",
+  mode: "cloud" | "local" = "cloud"
 ): Promise<GeminiAnalysisResult> {
+  if (mode === "local") {
+    const response = await fetch("http://localhost:8888/api/local/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        transcripts: segments.map(s => ({ sender: s.sender, text: s.text }))
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Local analysis failed: ${errorText}`);
+    }
+
+    return await response.json() as GeminiAnalysisResult;
+  }
+
+  // Cloud Mode (Original logic)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const transcriptText = segments
